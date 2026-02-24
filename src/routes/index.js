@@ -5,6 +5,9 @@ router.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
+// User Routes
+router.use('/users', require('./userRoutes'));
+
 // Item Listing Route  !!!!DO NOT MODIFY THESE
 router.use('/items', require('./itemRoutes'));
 router.use('/item-images', require('./itemImageRoutes'));
