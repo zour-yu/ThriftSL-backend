@@ -5,6 +5,9 @@ const UserController = require("../controllers/userController");
 // Get all users
 router.get("/", UserController.getAllUsers);
 
+// Get active users only
+router.get("/active", UserController.getActiveUsers);
+
 // Get users by role
 router.get("/role/:role", UserController.getUsersByRole);
 
@@ -19,6 +22,12 @@ router.post("/", UserController.createUser);
 
 // Update user
 router.put("/:id", UserController.updateUser);
+
+// Deactivate user
+router.patch("/:id/deactivate", UserController.deactivateUser);
+
+// Activate user
+router.patch("/:id/activate", UserController.activateUser);
 
 // Delete user
 router.delete("/:id", UserController.deleteUser);

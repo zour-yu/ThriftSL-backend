@@ -70,7 +70,7 @@ class UserController {
   // Create new user
   static async createUser(req, res) {
     try {
-      const { firebaseUID, name, email, phone, role } = req.body;
+      const { firebaseUID, name, email, phone, role, isActive } = req.body;
 
       // Validate required fields
       if (!firebaseUID || !name || !email || !phone) {
@@ -97,7 +97,8 @@ class UserController {
         name,
         email,
         phone,
-        role: role || "buyer",
+        role: role || "user",
+        isActive: isActive !== undefined ? isActive : true,
       });
 
       res.status(201).json({
@@ -117,11 +118,11 @@ class UserController {
   // Update user
   static async updateUser(req, res) {
     try {
-      const { name, email, phone, role } = req.body;
+      const { name, email, phone, role, isActive } = req.body;
 
       const user = await User.findByIdAndUpdate(
         req.params.id,
-        { name, email, phone, role },
+        { name, email, phone, role, isActive },
         { new: true, runValidators: true }
       ).select("-__v");
 
@@ -186,6 +187,84 @@ class UserController {
       res.status(500).json({
         success: false,
         message: "Error fetching users by role",
+        error: error.message,
+      });
+    }
+  }
+
+  // Get active users only
+  static async getActiveUsers(req, res) {
+    try {
+      const users = await User.find({ isActive: true }).select("-__v");
+      res.json({
+        success: true,
+        count: users.length,
+        data: users,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error fetching active users",
+        error: error.message,
+      });
+    }
+  }
+
+  // Deactivate user (soft delete)
+  static async deactivateUser(req, res) {
+    try {
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { isActive: false },
+        { new: true, runValidators: true }
+      ).select("-__v");
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "User deactivated successfully",
+        data: user,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error deactivating user",
+        error: error.message,
+      });
+    }
+  }
+
+  // Activate user
+  static async activateUser(req, res) {
+    try {
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { isActive: true },
+        { new: true, runValidators: true }
+      ).select("-__v");
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "User activated successfully",
+        data: user,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error activating user",
         error: error.message,
       });
     }
