@@ -141,3 +141,108 @@ exports.getItemsByUserId = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+// GET /api/items/swappable?excludeItemId=<id>&userId=<userId>
+/*exports.getSwappableItems = async (req, res) => {
+  try {
+    const { excludeItemId, userId } = req.query;
+
+    const filter = {
+      swappable: { $ne: 'no' } // treats 'yes', 'swap', etc as swappable
+    };
+
+    if (userId) {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid userId' });
+      }
+      filter.userId = userId;
+    }
+
+    if (excludeItemId) {
+      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
+        return res.status(400).json({ message: 'Invalid excludeItemId' });
+      }
+      filter._id = { $ne: excludeItemId };
+    }
+
+    const items = await Item.find(filter).sort({ createdAt: -1 });
+    return res.json(items);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+*/
+
+// GET /api/items/:id/full  (item + images)
+exports.getItemByIdFull = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid item id' });
+    }
+
+    const result = await Item.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'itemimages',          // ✅ collection name for ItemImage model
+          localField: '_id',
+          foreignField: 'itemId',
+          as: 'images'
+        }
+      },
+      { $limit: 1 }
+    ]);
+
+    if (!result.length) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    return res.json(result[0]);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// GET /api/items/swappable/full?excludeItemId=<id>&userId=<userId>
+exports.getSwappableItemsFull = async (req, res) => {
+  try {
+    const { excludeItemId, userId } = req.query;
+
+    const match = {
+      swappable: { $ne: 'no' } // 'yes' or any other string is treated as swappable
+    };
+
+    if (userId) {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid userId' });
+      }
+      match.userId = new mongoose.Types.ObjectId(userId);
+    }
+
+    if (excludeItemId) {
+      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
+        return res.status(400).json({ message: 'Invalid excludeItemId' });
+      }
+      match._id = { $ne: new mongoose.Types.ObjectId(excludeItemId) };
+    }
+
+    const items = await Item.aggregate([
+      { $match: match },
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: 'itemimages',
+          localField: '_id',
+          foreignField: 'itemId',
+          as: 'images'
+        }
+      }
+    ]);
+
+    return res.json(items);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
