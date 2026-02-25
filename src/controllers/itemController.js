@@ -4,32 +4,17 @@ const Item = require('../models/item');
 // POST /api/items
 exports.createItem = async (req, res) => {
   try {
-    const {
-      itemId,
-      title,
-      price,
-      description,
-      userId,
-      negotiable,
-      swappable,
-      postDate
-    } = req.body;
+    const { title, price, description, userId, negotiable, swappable, postDate } = req.body;
 
-    if (!itemId || !title || price === undefined || !userId) {
-      return res
-        .status(400)
-        .json({ message: 'itemId, title, price, and userId are required' });
+    if (!title || price === undefined || !userId) {
+      return res.status(400).json({ message: 'title, price, and userId are required' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Invalid userId (must be ObjectId)' });
     }
 
-    const existing = await Item.findOne({ itemId });
-    if (existing) return res.status(409).json({ message: 'itemId already exists' });
-
     const item = await Item.create({
-      itemId,
       title,
       price,
       description,
@@ -108,11 +93,6 @@ exports.updateItem = async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid item id' });
-    }
-
-    // Optional: prevent itemId changes
-    if (req.body.itemId) {
-      return res.status(400).json({ message: 'itemId cannot be updated' });
     }
 
     const updated = await Item.findByIdAndUpdate(id, req.body, {
