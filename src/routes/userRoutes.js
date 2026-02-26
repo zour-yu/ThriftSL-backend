@@ -1,7 +1,23 @@
 const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/userController");
+const { verifyToken, checkUserRole } = require("../middleware/authMiddleware");
 
+//  verifyToken removed for testing 
+
+// User-specific routes (for any authenticated user)
+// Get my profile
+router.get("/me", UserController.getMyProfile);
+
+// Update my profile
+router.put("/me", UserController.updateMyProfile);
+
+// Delete my account
+router.delete("/me", UserController.deleteMyAccount);
+
+
+
+// Admin routes 
 // Get all users
 router.get("/", UserController.getAllUsers);
 

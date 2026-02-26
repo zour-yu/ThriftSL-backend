@@ -1,6 +1,9 @@
 const User = require("../models/user");
 
 class UserController {
+  
+  //Admin Functions
+
   // Get all users
   static async getAllUsers(req, res) {
     try {
@@ -19,7 +22,7 @@ class UserController {
     }
   }
 
-  // Get user by ID
+  // Get user by ID 
   static async getUserById(req, res) {
     try {
       const user = await User.findById(req.params.id).select("-__v");
@@ -42,7 +45,7 @@ class UserController {
     }
   }
 
-  // Get user by Firebase UID
+  // Get user by Firebase UID (admin only)
   static async getUserByFirebaseUID(req, res) {
     try {
       const user = await User.findOne({
@@ -67,7 +70,7 @@ class UserController {
     }
   }
 
-  // Create new user
+  // Create new user(admin only)
   static async createUser(req, res) {
     try {
       const { firebaseUID, name, email, phone, role, isActive } = req.body;
@@ -115,7 +118,7 @@ class UserController {
     }
   }
 
-  // Update user
+  // Update user (admin only)
   static async updateUser(req, res) {
     try {
       const { name, email, phone, role, isActive } = req.body;
@@ -147,7 +150,7 @@ class UserController {
     }
   }
 
-  // Delete user
+  // Delete user(admin only)
   static async deleteUser(req, res) {
     try {
       const user = await User.findByIdAndDelete(req.params.id);
@@ -172,7 +175,7 @@ class UserController {
     }
   }
 
-  // Get users by role
+  // Get users by role(admin only)
   static async getUsersByRole(req, res) {
     try {
       const { role } = req.params;
@@ -192,7 +195,7 @@ class UserController {
     }
   }
 
-  // Get active users only
+  // Get active users  (admin only)
   static async getActiveUsers(req, res) {
     try {
       const users = await User.find({ isActive: true }).select("-__v");
@@ -210,7 +213,7 @@ class UserController {
     }
   }
 
-  // Deactivate user (soft delete)
+  // Deactivate user (admin only)
   static async deactivateUser(req, res) {
     try {
       const user = await User.findByIdAndUpdate(
@@ -265,6 +268,92 @@ class UserController {
       res.status(500).json({
         success: false,
         message: "Error activating user",
+        error: error.message,
+      });
+    }
+  }
+
+  //User-specific Functions
+
+  // Get my profile (authenticated )
+  static async getMyProfile(req, res) {
+    try {
+      
+      const user = await User.findOne({ firebaseUID: test789 }).select("-__v");//hardcoded for testing
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User profile not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error fetching profile",
+        error: error.message,
+      });
+    }
+  }
+
+  // Update my profile (authenticated )
+  static async updateMyProfile(req, res) {
+    try {
+      const { name, phone } = req.body;
+
+      // Only allow updating name and phone
+      const user = await User.findOneAndUpdate(
+        { firebaseUID: test789 },//hardcoded for testing
+        { name, phone },
+        { new: true, runValidators: true }
+      ).select("-__v");
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User profile not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Profile updated successfully",
+        data: user,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error updating profile",
+        error: error.message,
+      });
+    }
+  }
+
+  // Delete my account (authenticated )
+  static async deleteMyAccount(req, res) {
+    try {
+      const user = await User.findOneAndDelete({ firebaseUID: test789 });//hardcoded for testing
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User profile not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Account deleted successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error deleting account",
         error: error.message,
       });
     }
