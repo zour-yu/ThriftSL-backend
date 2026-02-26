@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Item = require('../models/item');
+const User = require("../models/user");
 
 // POST /api/items
 exports.createItem = async (req, res) => {
@@ -7,11 +8,17 @@ exports.createItem = async (req, res) => {
     const { title, price, description, userId, negotiable, swappable, postDate } = req.body;
 
     if (!title || price === undefined || !userId) {
-      return res.status(400).json({ message: 'title, price, and userId are required' });
+      return res.status(400).json({ message: "title, price, and userId are required" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid userId (must be ObjectId)' });
+      return res.status(400).json({ message: "Invalid userId (must be ObjectId)" });
+    }
+
+    //  ensure user exists
+    const userExists = await User.findById(userId);
+    if (!userExists) {
+      return res.status(404).json({ message: "User not found" });
     }
 
     const item = await Item.create({
@@ -20,15 +27,16 @@ exports.createItem = async (req, res) => {
       description,
       userId,
       negotiable: negotiable ?? false,
-      swappable: swappable ?? 'no',
+      swappable: swappable ?? "no",
       postDate: postDate ? new Date(postDate) : undefined
     });
 
     return res.status(201).json(item);
   } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // GET /api/items
 exports.getAllItems = async (req, res) => {
@@ -92,7 +100,12 @@ exports.updateItem = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
+      return res.status(400).json({ message: "Invalid item id" });
+    }
+
+    // optional safety: prevent changing owner
+    if (req.body.userId) {
+      return res.status(400).json({ message: "userId cannot be updated" });
     }
 
     const updated = await Item.findByIdAndUpdate(id, req.body, {
@@ -100,11 +113,11 @@ exports.updateItem = async (req, res) => {
       runValidators: true
     });
 
-    if (!updated) return res.status(404).json({ message: 'Item not found' });
+    if (!updated) return res.status(404).json({ message: "Item not found" });
 
     return res.json(updated);
   } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -114,15 +127,15 @@ exports.deleteItem = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
+      return res.status(400).json({ message: "Invalid item id" });
     }
 
     const deleted = await Item.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: 'Item not found' });
+    if (!deleted) return res.status(404).json({ message: "Item not found" });
 
-    return res.json({ message: 'Item deleted', id });
+    return res.json({ message: "Item deleted", id });
   } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
