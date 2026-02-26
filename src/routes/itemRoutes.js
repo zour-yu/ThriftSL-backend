@@ -5,7 +5,9 @@ const itemController = require('../controllers/itemController');
 
 
 // Full responses with images (put ABOVE "/:id")
-router.get('/swappable/full', itemController.getSwappableItemsFull);
+//router.get('/swappable/full', itemController.getSwappableItemsFull);
+
+//This will send the item ID use this for swap.
 router.get('/:id/full', itemController.getItemByIdFull); // This will send the full item including the image url
 
 
