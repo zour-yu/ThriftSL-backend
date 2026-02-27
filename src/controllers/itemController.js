@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 const Item = require('../models/item');
 const User = require("../models/user");
-const { sendItemCreatedEmail } = require("../services/emailService");
-
+const { sendItemCreatedEmail } = require("../service/emailService");
 
 // POST /api/items
 exports.createItem = async (req, res) => {
