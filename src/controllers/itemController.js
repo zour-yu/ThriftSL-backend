@@ -6,70 +6,144 @@ const { sendItemCreatedEmail } = require("../service/emailService");
 // POST /api/items
 exports.createItem = async (req, res) => {
   try {
-    const { title, price, description, userId } = req.body;
+    const {
+      title,
+      price,
+      description,
+      userId,
+      negotiable,
+      swappable,
+      postDate,
+    } = req.body;
 
-    // ...your validations...
+    // 🔎 Basic validation
+    if (!title || price === undefined || !userId) {
+      return res.status(400).json({
+        message: "title, price, and userId are required",
+      });
+    }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        message: "Invalid userId (must be ObjectId)",
+      });
+    }
 
-    const item = await Item.create({ title, price, description, userId });
+    // 🔎 Ensure user exists
+    const user = await User.findById(userId).select("name email isActive");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    // Respond FIRST (fast)
-    res.status(201).json({ message: "Item created", item });
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "User is inactive" });
+    }
 
-    // Send email AFTER response (don’t slow down user)
-    
-    
-    sendItemCreatedEmail({
-      toEmail: user.email,
-      toName: user.name,
-      item,
-    }).catch((err) => {
-      console.error("Mailjet send failed:", err?.response?.data || err.message);
+    // ✅ Create item with all fields
+    const item = await Item.create({
+      title: String(title).trim(),
+      price,
+      description: description ? String(description) : "",
+      userId,
+      negotiable: negotiable ?? false,
+      swappable: swappable ?? "no",
+      postDate: postDate ? new Date(postDate) : new Date(),
     });
+
+    // 🚀 Respond immediately (fast UX)
+    res.status(201).json({
+      message: "Item created successfully",
+      data: item,
+    });
+
+    // 📧 Send email AFTER response (non-blocking)
+    if (user.email) {
+      sendItemCreatedEmail({
+        toEmail: user.email,
+        toName: user.name,
+        item,
+      }).catch((err) => {
+        console.error(
+          "Email send failed:",
+          err?.response?.body || err?.response?.data || err.message
+        );
+      });
+    }
   } catch (err) {
-    console.error(err);
+    console.error("Create item error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-
 // GET /api/items
-exports.getAllItems = async (req, res) => {
+exports.createItem = async (req, res) => {
   try {
-    const { userId, q, minPrice, maxPrice, negotiable, swappable, sortBy } = req.query;
+    const {
+      title,
+      price,
+      description,
+      userId,
+      negotiable,
+      swappable,
+      postDate,
+    } = req.body;
 
-    const filter = {};
-
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      filter.userId = userId;
+    //  Basic validation
+    if (!title || price === undefined || !userId) {
+      return res.status(400).json({
+        message: "title, price, and userId are required",
+      });
     }
 
-    if (q) filter.title = { $regex: q, $options: 'i' };
-
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      filter.price = {};
-      if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
-      if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        message: "Invalid userId (must be ObjectId)",
+      });
     }
 
-    if (negotiable !== undefined) filter.negotiable = negotiable === 'true';
-    if (swappable !== undefined) filter.swappable = swappable;
+    //  Ensure user exists
+    const user = await User.findById(userId).select("name email isActive");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    let query = Item.find(filter);
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "User is inactive" });
+    }
 
-    if (sortBy === 'newest') query = query.sort({ postDate: -1 });
-    if (sortBy === 'priceAsc') query = query.sort({ price: 1 });
-    if (sortBy === 'priceDesc') query = query.sort({ price: -1 });
+    //  Create item with all fields
+    const item = await Item.create({
+      title: String(title).trim(),
+      price,
+      description: description ? String(description) : "",
+      userId,
+      negotiable: negotiable ?? false,
+      swappable: swappable ?? "no",
+      postDate: postDate ? new Date(postDate) : new Date(),
+    });
 
-    const items = await query.exec();
-    return res.json(items);
+    //  Respond immediately (fast UX)
+    res.status(201).json({
+      message: "Item created successfully",
+      data: item,
+    });
+
+    // Send email AFTER response (non-blocking)
+    if (user.email) {
+      sendItemCreatedEmail({
+        toEmail: user.email,
+        toName: user.name,
+        item,
+      }).catch((err) => {
+        console.error(
+          "Email send failed:",
+          err?.response?.body || err?.response?.data || err.message
+        );
+      });
+    }
   } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Create item error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
