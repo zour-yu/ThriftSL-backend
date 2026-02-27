@@ -29,7 +29,7 @@ exports.createItem = async (req, res) => {
       });
     }
 
-    // 🔎 Ensure user exists
+    //  Ensure user exists
     const user = await User.findById(userId).select("name email isActive");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -39,7 +39,7 @@ exports.createItem = async (req, res) => {
       return res.status(403).json({ message: "User is inactive" });
     }
 
-    // ✅ Create item with all fields
+    //  Create item with all fields
     const item = await Item.create({
       title: String(title).trim(),
       price,
@@ -56,7 +56,7 @@ exports.createItem = async (req, res) => {
       data: item,
     });
 
-    // 📧 Send email AFTER response (non-blocking)
+    //  Send email AFTER response (non-blocking)
     if (user.email) {
       sendItemCreatedEmail({
         toEmail: user.email,
