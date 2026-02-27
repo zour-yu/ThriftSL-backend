@@ -5,8 +5,11 @@ router.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-// Authentication Routes
+// Auth Routes
 router.use('/auth', require('./authRoutes'));
+
+// User Routes
+router.use('/users', require('./userRoutes'));
 
 // Item Listing Route  !!!!DO NOT MODIFY THESE
 router.use('/items', require('./itemRoutes'));

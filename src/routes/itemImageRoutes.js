@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-// Item Image routes placeholder
-// TODO: Implement item image routes
+const itemImageController = require('../controllers/itemImageController');
+
+router.post('/', itemImageController.createItemImage);
+router.get('/', itemImageController.getItemImages);
+router.delete('/:id', itemImageController.deleteItemImage);
 
 module.exports = router;

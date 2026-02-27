@@ -1,93 +1,134 @@
+const admin = require('firebase-admin');
 const User = require('../models/user');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key', {
-    expiresIn: '7d',
-  });
-};
+class AuthController {
+  // Sign up 
+  static async signup(req, res) {
+    try {
+      const { email, password, name, phone } = req.body;
 
-const register = async (req, res) => {
-  try {
-    const { username, email, password, firstName, lastName } = req.body;
+      // Validate required fields
+      if (!email || !password || !name || !phone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide all required fields',
+        });
+      }
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'username, email, and password are required' });
+      // Create user in Firebase
+      const firebaseUser = await admin.auth().createUser({
+        email: email,
+        password: password,
+        emailVerified: false,
+        disabled: false,
+      });
+
+      // Save user profile to MongoDB
+      const dbUser = await User.create({
+        firebaseUID: firebaseUser.uid,
+        name: name,
+        email: email,
+        phone: phone,
+        role: 'user',
+        isActive: true,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        data: {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          profile: dbUser,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'auth/email-already-exists') {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already exists',
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Error during signup',
+        error: error.message,
+      });
     }
-
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = new User({
-      username,
-      email,
-      password: hashedPassword,
-      firstName,
-      lastName,
-    });
-
-    await user.save();
-
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      success: true,
-      data: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-};
 
-const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  // Sign in 
+  static async signin(req, res) {
+    try {
+      const { idToken } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' });
+      if (!idToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID token is required',
+        });
+      }
+
+      // Verify the Firebase ID token
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const firebaseUID = decodedToken.uid;
+
+      // Get user from MongoDB
+      const user = await User.findOne({ firebaseUID }).select('-__v');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User profile not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Sign in successful',
+        data: {
+          user: user,
+          firebaseUID: firebaseUID,
+        },
+      });
+    } catch (error) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        error: error.message,
+      });
     }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const token = generateToken(user._id);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-};
 
-module.exports = {
-  register,
-  login,
-};
+  // Reset password
+  static async resetPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required',
+        });
+      }
+
+      // Generate password reset link
+      const link = await admin.auth().generatePasswordResetLink(email);
+
+      res.json({
+        success: true,
+        message: 'Password reset link generated',
+        data: { resetLink: link },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error generating reset link',
+        error: error.message,
+      });
+    }
+  }
+}
+
+module.exports = AuthController;

@@ -1,19 +1,75 @@
-const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
+const User = require('../models/user');
 
-const authMiddleware = (req, res, next) => {
+// verify Firebase ID token
+const verifyToken = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const authHeader = req.headers.authorization;
+    
+    // Check if Authorization header exists
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided. Please include Authorization: Bearer <token>',
+      });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.userId = decoded.id;
+    // Extract token 
+    const token = authHeader.split('Bearer ')[1];
+
+    // Verify token with Firebase Admin SDK
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    
+    // Attach user into controller to use
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      role: decodedToken.role || 'user',
+    };
+
     next();
+    
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired token',
+      error: error.message,
+    });
   }
 };
 
-module.exports = authMiddleware;
+// check user role
+const checkUserRole = (requiredRole) => {
+  return async (req, res, next) => {
+    try {
+      const user = await User.findOne({ firebaseUID: req.user.uid });
+
+      // Check if user exists in database
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User profile not found',
+        });
+      }
+
+      // Check if user have required role
+      if (user.role !== requiredRole) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. ${requiredRole} role required.`,
+        });
+      }
+
+      next();
+
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error checking user role',
+        error: error.message,
+      });
+    }
+  };
+};
+
+module.exports = { verifyToken, checkUserRole };
