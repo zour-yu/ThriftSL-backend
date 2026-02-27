@@ -1,39 +1,37 @@
 const mongoose = require('mongoose');
 const Item = require('../models/item');
 const User = require("../models/user");
+const { sendItemCreatedEmail } = require("../services/emailService");
+
 
 // POST /api/items
 exports.createItem = async (req, res) => {
   try {
-    const { title, price, description, userId, negotiable, swappable, postDate } = req.body;
+    const { title, price, description, userId } = req.body;
 
-    if (!title || price === undefined || !userId) {
-      return res.status(400).json({ message: "title, price, and userId are required" });
-    }
+    // ...your validations...
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid userId (must be ObjectId)" });
-    }
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    //  ensure user exists
-    const userExists = await User.findById(userId);
-    if (!userExists) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const item = await Item.create({ title, price, description, userId });
 
-    const item = await Item.create({
-      title,
-      price,
-      description,
-      userId,
-      negotiable: negotiable ?? false,
-      swappable: swappable ?? "no",
-      postDate: postDate ? new Date(postDate) : undefined
+    // Respond FIRST (fast)
+    res.status(201).json({ message: "Item created", item });
+
+    // Send email AFTER response (don’t slow down user)
+    
+    
+    sendItemCreatedEmail({
+      toEmail: user.email,
+      toName: user.name,
+      item,
+    }).catch((err) => {
+      console.error("Mailjet send failed:", err?.response?.data || err.message);
     });
-
-    return res.status(201).json(item);
   } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
