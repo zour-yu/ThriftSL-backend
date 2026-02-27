@@ -15,6 +15,8 @@ router.put("/me", UserController.updateMyProfile);
 // Delete my account
 router.delete("/me", UserController.deleteMyAccount);
 
+// Get user items (must be above "/:id")
+router.get("/:id/items", UserController.getItemsByUserId);
 
 
 // Admin routes 
