@@ -358,6 +358,26 @@ class UserController {
       });
     }
   }
+
+static async getItemsByUserId(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid user id" });
+      }
+
+      const items = await Item.find({ userId: id }).sort({ createdAt: -1 });
+      return res.json({ success: true, count: items.length, data: items });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching user items",
+        error: error.message,
+      });
+    }
+  }  
 }
+
 
 module.exports = UserController;
