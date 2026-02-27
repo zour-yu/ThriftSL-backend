@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Item = require('../models/item');
 const User = require("../models/user");
+const ItemImage = require("../models/itemImage");
 const { sendItemCreatedEmail } = require("../service/emailService");
 
 
@@ -73,6 +74,43 @@ exports.createItem = async (req, res) => {
   } catch (err) {
     console.error("Create item error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getAllItems = async (req, res) => {
+  try {
+    const { userId, q, minPrice, maxPrice, negotiable, swappable, sortBy } = req.query;
+
+    const filter = {};
+
+    if (userId) {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid userId' });
+      }
+      filter.userId = userId;
+    }
+
+    if (q) filter.title = { $regex: q, $options: 'i' };
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.price = {};
+      if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
+      if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+    }
+
+    if (negotiable !== undefined) filter.negotiable = negotiable === 'true';
+    if (swappable !== undefined) filter.swappable = swappable;
+
+    let query = Item.find(filter);
+
+    if (sortBy === 'newest') query = query.sort({ postDate: -1 });
+    if (sortBy === 'priceAsc') query = query.sort({ price: 1 });
+    if (sortBy === 'priceDesc') query = query.sort({ price: -1 });
+
+    const items = await query.exec();
+    return res.json(items);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
