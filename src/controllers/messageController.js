@@ -78,7 +78,7 @@ const getConversation = async (req, res) => {
   }
 };
 
-// READ: Get inbox (all conversations of logged-in user)
+// READ: Get inbox (all messages received by logged-in user)
 const getInbox = async (req, res) => {
   try {
     const { loggedInUserId } = req.query;
@@ -87,67 +87,18 @@ const getInbox = async (req, res) => {
       return res.status(400).json({ error: 'loggedInUserId query parameter is required' });
     }
 
-    const objectId = new mongoose.Types.ObjectId(loggedInUserId);
-
-    const conversations = await Message.aggregate([
-      {
-        $match: {
-          $or: [{ sender: objectId }, { receiver: objectId }],
-          isDeleted: false,
-        },
-      },
-      {
-        $sort: { createdAt: -1 },
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$sender', objectId] },
-              '$receiver',
-              '$sender',
-            ],
-          },
-          lastMessage: { $first: '$$ROOT' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'otherUser',
-        },
-      },
-      {
-        $unwind: '$otherUser',
-      },
-      {
-        $project: {
-          _id: 1,
-          otherUser: {
-            _id: 1,
-            name: 1,
-            email: 1,
-            phone: 1,
-          },
-          lastMessage: {
-            _id: 1,
-            content: 1,
-            status: 1,
-            createdAt: 1,
-            sender: 1,
-          },
-        },
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 },
-      },
-    ]);
+    const messages = await Message.find({
+      receiver: loggedInUserId,
+      isDeleted: false,
+    })
+      .populate('sender', 'name email phone firebaseUID')
+      .populate('receiver', 'name email phone firebaseUID')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      data: conversations,
+      count: messages.length,
+      data: messages,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
