@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
 const messageController = require('../controllers/messageController');
-
-// Apply auth middleware to all routes
-router.use(authMiddleware);
 
 // CREATE: Send a message
 router.post('/', messageController.createMessage);

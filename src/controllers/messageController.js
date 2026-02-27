@@ -1,14 +1,14 @@
 const Message = require('../models/message');
 const User = require('../models/user');
+const mongoose = require('mongoose');
 
 // CREATE: Send a message
 const createMessage = async (req, res) => {
   try {
-    const { receiverId, content } = req.body;
-    const senderId = req.userId;
+    const { senderId, receiverId, content } = req.body;
 
-    if (!receiverId || !content) {
-      return res.status(400).json({ error: 'receiverId and content are required' });
+    if (!senderId || !receiverId || !content) {
+      return res.status(400).json({ error: 'senderId, receiverId and content are required' });
     }
 
     const receiverExists = await User.findById(receiverId);
@@ -43,7 +43,11 @@ const createMessage = async (req, res) => {
 const getConversation = async (req, res) => {
   try {
     const { userId } = req.params;
-    const loggedInUserId = req.userId;
+    const { loggedInUserId } = req.query;
+
+    if (!loggedInUserId) {
+      return res.status(400).json({ error: 'loggedInUserId query parameter is required' });
+    }
 
     if (loggedInUserId === userId) {
       return res.status(400).json({ error: 'Cannot get conversation with yourself' });
@@ -61,8 +65,8 @@ const getConversation = async (req, res) => {
       ],
       isDeleted: false,
     })
-      .populate('sender', 'username email firstName lastName profileImage')
-      .populate('receiver', 'username email firstName lastName profileImage')
+      .populate('sender', 'name email phone')
+      .populate('receiver', 'name email phone')
       .sort({ createdAt: 1 });
 
     res.status(200).json({
@@ -77,12 +81,18 @@ const getConversation = async (req, res) => {
 // READ: Get inbox (all conversations of logged-in user)
 const getInbox = async (req, res) => {
   try {
-    const loggedInUserId = req.userId;
+    const { loggedInUserId } = req.query;
+
+    if (!loggedInUserId) {
+      return res.status(400).json({ error: 'loggedInUserId query parameter is required' });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(loggedInUserId);
 
     const conversations = await Message.aggregate([
       {
         $match: {
-          $or: [{ sender: new Object(loggedInUserId) }, { receiver: new Object(loggedInUserId) }],
+          $or: [{ sender: objectId }, { receiver: objectId }],
           isDeleted: false,
         },
       },
@@ -93,7 +103,7 @@ const getInbox = async (req, res) => {
         $group: {
           _id: {
             $cond: [
-              { $eq: ['$sender', new Object(loggedInUserId)] },
+              { $eq: ['$sender', objectId] },
               '$receiver',
               '$sender',
             ],
@@ -117,11 +127,9 @@ const getInbox = async (req, res) => {
           _id: 1,
           otherUser: {
             _id: 1,
-            username: 1,
+            name: 1,
             email: 1,
-            firstName: 1,
-            lastName: 1,
-            profileImage: 1,
+            phone: 1,
           },
           lastMessage: {
             _id: 1,
@@ -150,8 +158,7 @@ const getInbox = async (req, res) => {
 const updateMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
-    const loggedInUserId = req.userId;
+    const { content, senderId } = req.body;
 
     if (!content) {
       return res.status(400).json({ error: 'content is required' });
@@ -163,7 +170,7 @@ const updateMessage = async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    if (message.sender.toString() !== loggedInUserId) {
+    if (message.sender.toString() !== senderId) {
       return res.status(403).json({ error: 'Only sender can edit this message' });
     }
 
@@ -188,7 +195,7 @@ const updateMessage = async (req, res) => {
 const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const loggedInUserId = req.userId;
+    const { receiverId } = req.body;
 
     const message = await Message.findById(id);
 
@@ -196,7 +203,7 @@ const markAsRead = async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    if (message.receiver.toString() !== loggedInUserId) {
+    if (message.receiver.toString() !== receiverId) {
       return res.status(403).json({ error: 'Only receiver can mark as read' });
     }
 
@@ -217,7 +224,7 @@ const markAsRead = async (req, res) => {
 const deleteMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const loggedInUserId = req.userId;
+    const { userId } = req.body;
 
     const message = await Message.findById(id);
 
@@ -225,7 +232,7 @@ const deleteMessage = async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    if (message.sender.toString() !== loggedInUserId && message.receiver.toString() !== loggedInUserId) {
+    if (message.sender.toString() !== userId && message.receiver.toString() !== userId) {
       return res.status(403).json({ error: 'Not authorized to delete this message' });
     }
 
