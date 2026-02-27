@@ -4,6 +4,14 @@ const morgan = require('morgan');
 
 const app = express();
 
+//FireBase Admin sdk initialization
+const admin = require('firebase-admin');
+const serviceAccount = require('./config/firebaseServiceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 app.use(cors());
 app.use(morgan('dev'));
 
