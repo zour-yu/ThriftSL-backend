@@ -15,4 +15,7 @@ router.use('/users', require('./userRoutes'));
 router.use('/items', require('./itemRoutes'));
 router.use('/item-images', require('./itemImageRoutes'));
 
+// Messaging & Interaction Management
+router.use('/messages', require('./messageRoutes'));
+
 module.exports = router;
