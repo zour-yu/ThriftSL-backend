@@ -14,7 +14,7 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    // Extract token 
+     
     const token = authHeader.split('Bearer ')[1];
 
     // Verify token with Firebase Admin SDK
