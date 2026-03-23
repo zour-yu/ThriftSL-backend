@@ -6,7 +6,7 @@ const { verifyToken, checkUserRole } = require("../middleware/authMiddleware");
 //  verifyToken removed for testing 
 
 // User-specific routes (for any authenticated user)
-// Get my profile
+// Get my(user) profile
 router.get("/me", UserController.getMyProfile);
 
 // Update my profile
@@ -15,11 +15,12 @@ router.put("/me", UserController.updateMyProfile);
 // Delete my account
 router.delete("/me", UserController.deleteMyAccount);
 
-// Get user items (must be above "/:id")
+// Get user items (same as logged user"/:id")
 router.get("/:id/items", UserController.getItemsByUserId);
 
 
 // Admin routes 
+
 // Get all users
 router.get("/", UserController.getAllUsers);
 
