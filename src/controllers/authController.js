@@ -84,6 +84,12 @@ class AuthController {
         });
       }
 
+      // Store user data in session
+      req.session.userId = user._id;
+      req.session.firebaseUID = firebaseUID;
+      req.session.email = user.email;
+      req.session.role = user.role;
+
       res.json({
         success: true,
         message: 'Sign in successful',
@@ -125,6 +131,62 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Error generating reset link',
+        error: error.message,
+      });
+    }
+  }
+
+  // Logout - Destroy session
+  static async logout(req, res) {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            message: 'Error during logout',
+            error: err.message,
+          });
+        }
+
+        res.clearCookie('connect.sid');
+        res.json({
+          success: true,
+          message: 'Logged out successfully',
+        });
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error during logout',
+        error: error.message,
+      });
+    }
+  }
+
+  // Check session status
+  static async checkSession(req, res) {
+    try {
+      if (req.session && req.session.userId) {
+        return res.json({
+          success: true,
+          authenticated: true,
+          data: {
+            userId: req.session.userId,
+            email: req.session.email,
+            role: req.session.role,
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        authenticated: false,
+        message: 'No active session',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error checking session',
         error: error.message,
       });
     }
