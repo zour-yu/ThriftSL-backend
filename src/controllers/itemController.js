@@ -4,10 +4,13 @@ const User = require("../models/user");
 const ItemImage = require("../models/itemImage");
 const { sendItemCreatedEmail } = require("../service/emailService");
 
+/*
+CREATE ITEM
+*/
 
-// GET /api/items
 exports.createItem = async (req, res) => {
   try {
+
     const {
       title,
       price,
@@ -15,285 +18,264 @@ exports.createItem = async (req, res) => {
       userId,
       negotiable,
       swappable,
-      postDate,
+      contactNumber,
+      category,
+      images
     } = req.body;
 
-    //  Basic validation
-    if (!title || price === undefined || !userId) {
-      return res.status(400).json({
-        message: "title, price, and userId are required",
-      });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({
-        message: "Invalid userId (must be ObjectId)",
-      });
-    }
-
-    //  Ensure user exists
-    const user = await User.findById(userId).select("name email isActive");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.isActive === false) {
-      return res.status(403).json({ message: "User is inactive" });
-    }
-
-    //  Create item with all fields
     const item = await Item.create({
-      title: String(title).trim(),
+      title,
       price,
-      description: description ? String(description) : "",
+      description,
       userId,
-      negotiable: negotiable ?? false,
-      swappable: swappable ?? "no",
-      postDate: postDate ? new Date(postDate) : new Date(),
+      negotiable,
+      swappable,
+      contactNumber,
+      category,
+      images
     });
 
-    //  Respond immediately (fast UX)
     res.status(201).json({
+      success: true,
       message: "Item created successfully",
-      data: item,
+      data: item
     });
 
-    // Send email AFTER response (non-blocking)
-    if (user.email) {
-      sendItemCreatedEmail({
-        toEmail: user.email,
-        toName: user.name,
-        item,
-      }).catch((err) => {
-        console.error(
-          "Email send failed:",
-          err?.response?.body || err?.response?.data || err.message
-        );
-      });
-    }
-  } catch (err) {
-    console.error("Create item error:", err);
-    res.status(500).json({ message: "Server error" });
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error creating item",
+      error: error.message
+    });
+
   }
 };
+
+
+/*
+GET ALL ITEMS
+*/
 
 exports.getAllItems = async (req, res) => {
   try {
-    const { userId, q, minPrice, maxPrice, negotiable, swappable, sortBy } = req.query;
 
-    const filter = {};
+    const items = await Item.find().sort({ createdAt: -1 });
 
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      filter.userId = userId;
-    }
-
-    if (q) filter.title = { $regex: q, $options: 'i' };
-
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      filter.price = {};
-      if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
-      if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
-    }
-
-    if (negotiable !== undefined) filter.negotiable = negotiable === 'true';
-    if (swappable !== undefined) filter.swappable = swappable;
-
-    let query = Item.find(filter);
-
-    if (sortBy === 'newest') query = query.sort({ postDate: -1 });
-    if (sortBy === 'priceAsc') query = query.sort({ price: 1 });
-    if (sortBy === 'priceDesc') query = query.sort({ price: -1 });
-
-    const items = await query.exec();
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// GET /api/items/:id (Mongo _id)
-exports.getItemById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
-    }
-
-    const item = await Item.findById(id);
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-
-    return res.json(item);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// PUT /api/items/:id
-exports.updateItem = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid item id" });
-    }
-
-    // optional safety: prevent changing owner
-    if (req.body.userId) {
-      return res.status(400).json({ message: "userId cannot be updated" });
-    }
-
-    const updated = await Item.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
     });
 
-    if (!updated) return res.status(404).json({ message: "Item not found" });
+  } catch (error) {
 
-    return res.json(updated);
-  } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching items",
+      error: error.message
+    });
+
   }
 };
 
-// DELETE /api/items/:id
-exports.deleteItem = async (req, res) => {
-  try {
-    const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid item id" });
-    }
-
-    const deleted = await Item.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: "Item not found" });
-
-    return res.json({ message: "Item deleted", id });
-  } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-// ✅ GET /api/items/user/:userId  (items listed by a user for profile)
-exports.getItemsByUserId = async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid userId' });
-    }
-
-    const items = await Item.find({ userId }).sort({ postDate: -1 });
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// GET /api/items/swappable?excludeItemId=<id>&userId=<userId>
-/*exports.getSwappableItems = async (req, res) => {
-  try {
-    const { excludeItemId, userId } = req.query;
-
-    const filter = {
-      swappable: { $ne: 'no' } // treats 'yes', 'swap', etc as swappable
-    };
-
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      filter.userId = userId;
-    }
-
-    if (excludeItemId) {
-      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
-        return res.status(400).json({ message: 'Invalid excludeItemId' });
-      }
-      filter._id = { $ne: excludeItemId };
-    }
-
-    const items = await Item.find(filter).sort({ createdAt: -1 });
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
+/*
+GET SINGLE ITEM
 */
 
-// GET /api/items/:id/full  (item + images)
-exports.getItemByIdFull = async (req, res) => {
+exports.getItemById = async (req, res) => {
+
   try {
-    const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
     }
 
-    const result = await Item.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
-      {
-        $lookup: {
-          from: 'itemimages',          // ✅ collection name for ItemImage model
-          localField: '_id',
-          foreignField: 'itemId',
-          as: 'images'
-        }
-      },
-      { $limit: 1 }
-    ]);
+    res.json({
+      success: true,
+      data: item
+    });
 
-    if (!result.length) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+  } catch (error) {
 
-    return res.json(result[0]);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching item",
+      error: error.message
+    });
+
   }
+
 };
 
-// GET /api/items/swappable/full?excludeItemId=<id>&userId=<userId>
-exports.getSwappableItemsFull = async (req, res) => {
+
+/*
+GET ITEMS BY CATEGORY
+*/
+
+exports.getItemsByCategory = async (req, res) => {
+
   try {
-    const { excludeItemId, userId } = req.query;
 
-    const match = {
-      swappable: { $ne: 'no' } // 'yes' or any other string is treated as swappable
-    };
+    const category = req.params.category;
 
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      match.userId = new mongoose.Types.ObjectId(userId);
-    }
+    const items = await Item.find({ category }).sort({ createdAt: -1 });
 
-    if (excludeItemId) {
-      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
-        return res.status(400).json({ message: 'Invalid excludeItemId' });
-      }
-      match._id = { $ne: new mongoose.Types.ObjectId(excludeItemId) };
-    }
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
 
-    const items = await Item.aggregate([
-      { $match: match },
-      { $sort: { createdAt: -1 } },
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching category items",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+GET ITEMS BY USER ID
+*/
+
+exports.getItemsByUser = async (req, res) => {
+
+  try {
+
+    const userId = req.params.userId;
+
+    const items = await Item.find({ userId }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching user items",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+UPDATE ITEM
+*/
+
+exports.updateItem = async (req, res) => {
+
+  try {
+
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      req.body,
       {
-        $lookup: {
-          from: 'itemimages',
-          localField: '_id',
-          foreignField: 'itemId',
-          as: 'images'
-        }
+        new: true,
+        runValidators: true
       }
-    ]);
+    );
 
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Item updated",
+      data: item
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error updating item",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+DELETE ITEM
+*/
+
+exports.deleteItem = async (req, res) => {
+
+  try {
+
+    const item = await Item.findByIdAndDelete(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Item deleted successfully"
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error deleting item",
+      error: error.message
+    });
+
+  }
+
+};
+
+exports.searchItems = async (req, res) => {
+  try {
+    const query = req.params.query;
+
+    const items = await Item.find({
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error searching items",
+      error: error.message
+    });
   }
 };
