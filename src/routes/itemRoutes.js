@@ -17,9 +17,9 @@ const itemController = require('../controllers/itemController');
 //router.get('/swappable', itemController.getSwappableItems); // This will
 
 // CRUD
-router.get("/search/:query", itemController.searchItems);
+router.post("/", upload.array("images", 5), itemController.createItem);
 
-router.post("/", itemController.createItem);
+router.get("/search/:query", itemController.searchItems);
 
 router.get("/", itemController.getAllItems);
 
