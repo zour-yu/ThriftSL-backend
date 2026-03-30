@@ -256,14 +256,19 @@ exports.deleteItem = async (req, res) => {
 
 exports.searchItems = async (req, res) => {
   try {
-    const query = req.params.query;
+    const { query } = req.params;
+    const { category } = req.query;
 
-    const items = await Item.find({
-      $or: [
-        { title: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } }
-      ]
-    }).sort({ createdAt: -1 });
+    let filter = {
+      title: { $regex: query, $options: "i" }
+    };
+
+    // Add category filter if provided
+    if (category) {
+      filter.category = category;
+    }
+
+    const items = await Item.find(filter).sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -279,3 +284,4 @@ exports.searchItems = async (req, res) => {
     });
   }
 };
+
