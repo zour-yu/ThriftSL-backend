@@ -16,7 +16,7 @@ admin.initializeApp({
 });
 
 app.use(cors({
-  origin: 'http://localhost:5174',
+  origin: 'http://localhost:5173', // Update with  frontend URL
   credentials: true
 }));
 app.use(morgan('dev'));

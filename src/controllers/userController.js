@@ -70,7 +70,7 @@ class UserController {
     }
   }
 
-  // Create new user(admin only)
+  // Create new user(admin & user can create their own account through signup)
   static async createUser(req, res) {
     try {
       const { firebaseUID, name, email, phone, role, isActive } = req.body;
