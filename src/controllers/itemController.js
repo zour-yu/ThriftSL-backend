@@ -19,9 +19,11 @@ exports.createItem = async (req, res) => {
       negotiable,
       swappable,
       contactNumber,
-      category,
-      images
+      category
     } = req.body;
+
+    // get image URLs from cloudinary
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
 
     const item = await Item.create({
       title,
@@ -32,7 +34,7 @@ exports.createItem = async (req, res) => {
       swappable,
       contactNumber,
       category,
-      images
+      images: imageUrls
     });
 
     res.status(201).json({
@@ -42,14 +44,14 @@ exports.createItem = async (req, res) => {
     });
 
   } catch (error) {
+  console.error("CREATE ITEM ERROR:", error); // FULL ERROR
 
-    res.status(500).json({
-      success: false,
-      message: "Error creating item",
-      error: error.message
-    });
-
-  }
+  res.status(500).json({
+    success: false,
+    message: "Error creating item",
+    error: error.message
+  });
+}
 };
 
 
