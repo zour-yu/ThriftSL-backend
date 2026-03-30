@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/userController");
-const { verifyToken, checkUserRole } = require("../middleware/authMiddleware");
+const { verifySession, checkUserRole } = require("../middleware/authMiddleware");
 
-//  verifyToken removed for testing 
+// Protect all following routes with session authentication
+router.use(verifySession);
 
 // User-specific routes (for any authenticated user)
 // Get my(user) profile
@@ -19,7 +20,8 @@ router.delete("/me", UserController.deleteMyAccount);
 router.get("/:id/items", UserController.getItemsByUserId);
 
 
-// Admin routes 
+// Admin routes - Restrict access to admin role only
+router.use(checkUserRole('admin'));
 
 // Get all users
 router.get("/", UserController.getAllUsers);

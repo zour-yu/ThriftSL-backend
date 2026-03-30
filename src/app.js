@@ -16,7 +16,7 @@ admin.initializeApp({
 });
 
 app.use(cors({
-  origin: true,
+  origin: 'http://localhost:5174',
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -28,18 +28,18 @@ app.use(cookieParser());
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-  resave: false,
-  saveUninitialized: false,
+  resave: false, // Don't save session if unmodified
+  saveUninitialized: false, // Don't create session until something stored
   store: MongoStore.create({
     mongoUrl: process.env.MONGO_URI,
     collectionName: 'sessions',
     ttl: 24 * 60 * 60
   }),
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
+    maxAge: 1000 * 60 * 60 * 24, // 1 Day
+    httpOnly: true, // Prevents client-side JS from reading the cookie
+    secure: process.env.NODE_ENV === 'production', // true on HTTPS, false otherwise
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
