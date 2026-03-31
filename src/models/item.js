@@ -60,6 +60,11 @@ const itemSchema = new mongoose.Schema(
     ]
   },
 
+  location: {
+  type: String,
+  default: ""
+},
+
   postDate: { 
     type: Date, 
     default: Date.now 
