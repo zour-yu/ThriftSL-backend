@@ -19,7 +19,8 @@ exports.createItem = async (req, res) => {
       negotiable,
       swappable,
       contactNumber,
-      category
+      category,
+      location
     } = req.body;
 
     // get image URLs from cloudinary
@@ -34,6 +35,7 @@ exports.createItem = async (req, res) => {
       swappable,
       contactNumber,
       category,
+      location,
       images: imageUrls
     });
 
