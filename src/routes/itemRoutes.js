@@ -22,6 +22,8 @@ router.post("/", upload.array("images", 5), itemController.createItem);
 
 router.get("/search/:query", itemController.searchItems);
 
+router.get("/filter", itemController.filterItems);
+
 router.get("/", itemController.getAllItems);
 
 router.get("/category/:category", itemController.getItemsByCategory);
