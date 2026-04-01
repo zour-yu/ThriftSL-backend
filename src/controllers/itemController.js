@@ -299,3 +299,73 @@ exports.searchItems = async (req, res) => {
   }
 };
 
+
+exports.filterItems = async (req, res) => {
+  try {
+    const {
+      minPrice,
+      maxPrice,
+      category,
+      negotiable,
+      swappable,
+      sort
+    } = req.query;
+
+    let query = {};
+
+    //  CATEGORY
+    if (category && category !== "") {
+      query.category = category;
+    }
+
+    //  NEGOTIABLE
+    if (negotiable !== undefined && negotiable !== "") {
+      query.negotiable = negotiable === "true";
+    }
+
+    //  SWAPPABLE
+    if (swappable && swappable !== "") {
+      query.swappable = swappable;
+    }
+
+    // PRICE FILTER (FIXED)
+    if ((minPrice && minPrice !== "") || (maxPrice && maxPrice !== "")) {
+      query.price = {};
+
+      if (minPrice && minPrice !== "") {
+        query.price.$gte = Number(minPrice);
+      }
+
+      if (maxPrice && maxPrice !== "") {
+        query.price.$lte = Number(maxPrice);
+      }
+    }
+
+    //  SORTING
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "price_low") sortOption = { price: 1 };
+    if (sort === "price_high") sortOption = { price: -1 };
+    if (sort === "latest") sortOption = { createdAt: -1 };
+
+    console.log("FINAL QUERY:", query); // 🔥 DEBUG
+
+    const items = await Item.find(query).sort(sortOption);
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+    console.error("FILTER ERROR:", error); // 🔥 VERY IMPORTANT
+
+    res.status(500).json({
+      success: false,
+      message: "Error filtering items",
+      error: error.message
+    });
+  }
+};
+
