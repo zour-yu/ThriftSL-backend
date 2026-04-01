@@ -7,7 +7,6 @@ const { sendItemCreatedEmail } = require("../service/emailService");
 /*
 CREATE ITEM
 */
-
 exports.createItem = async (req, res) => {
   try {
 
@@ -38,6 +37,17 @@ exports.createItem = async (req, res) => {
       location,
       images: imageUrls
     });
+
+    // 🔥 GET USER EMAIL
+    const user = await User.findById(userId);
+
+    if (user && user.email) {
+  await sendItemCreatedEmail({
+    toEmail: user.email,
+    toName: user.name,
+    item: item
+  });
+}
 
     res.status(201).json({
       success: true,
