@@ -279,7 +279,7 @@ class UserController {
   static async getMyProfile(req, res) {
     try {
       
-      const user = await User.findOne({ firebaseUID: test789 }).select("-__v");//hardcoded for testing
+      const user = await User.findOne({ firebaseUID: req.user.uid }).select("-__v");
 
       if (!user) {
         return res.status(404).json({
@@ -308,7 +308,7 @@ class UserController {
 
       // Only allow updating name and phone
       const user = await User.findOneAndUpdate(
-        { firebaseUID: test789 },//hardcoded for testing
+        { firebaseUID: req.user.uid },
         { name, phone },
         { new: true, runValidators: true }
       ).select("-__v");
@@ -337,7 +337,7 @@ class UserController {
   // Delete my account (authenticated )
   static async deleteMyAccount(req, res) {
     try {
-      const user = await User.findOneAndDelete({ firebaseUID: test789 });//hardcoded for testing
+      const user = await User.findOneAndDelete({ firebaseUID: req.user.uid });
 
       if (!user) {
         return res.status(404).json({
