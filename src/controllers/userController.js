@@ -38,12 +38,53 @@ class UserController {
         count: cat.count
       }));
 
+      // Fetch Recent Activity (New Listings and New Users)
+      const recentItems = await Item.find().sort({ createdAt: -1 }).limit(5);
+      const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
+
+      const getTimeAgo = (date) => {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " mins ago";
+        return Math.floor(seconds) + " seconds ago";
+      };
+
+      const combinedActivity = [
+        ...recentItems.map(item => ({
+          id: item._id.toString(),
+          type: "listing",
+          message: `New ${item.title} listed in ${item.category}`,
+          createdAt: item.createdAt,
+          time: getTimeAgo(item.createdAt)
+        })),
+        ...recentUsers.map(user => ({
+          id: user._id.toString(),
+          type: "user",
+          message: `${user.name} registered an account`,
+          createdAt: user.createdAt,
+          time: getTimeAgo(user.createdAt)
+        }))
+      ];
+
+      // Sort by newest first and grab top 5
+      combinedActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const recentActivity = combinedActivity.slice(0, 5).map(({ createdAt, ...rest }) => rest);
+
       res.json({
           activeListings,
           activeUsers,
           newListingsToday,
           newUsersToday,
-          categoryStats
+          categoryStats,
+          recentActivity
       });
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch stats' });
