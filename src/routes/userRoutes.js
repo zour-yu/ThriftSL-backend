@@ -23,6 +23,9 @@ router.get("/:id/items", UserController.getItemsByUserId);
 // Admin routes - Restrict access to admin role only
 router.use(checkUserRole('admin'));
 
+// Admin dashboard stats
+router.get("/dashboard-stats", UserController.getAdminDashboardStats);
+
 // Get all users
 router.get("/", UserController.getAllUsers);
 

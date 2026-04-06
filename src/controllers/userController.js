@@ -1,8 +1,54 @@
 const User = require("../models/user");
+const Item = require("../models/item");
+const mongoose = require("mongoose");
 
 class UserController {
   
   //Admin Functions
+
+  // Get Admin Dashboard Stats
+  static async getAdminDashboardStats(req, res) {
+    try {
+      // Use the actual models and criteria for counting
+      const activeListings = await Item.countDocuments(); // Counts all items, assuming listed = active
+      const activeUsers = await User.countDocuments({ isActive: true });
+      
+      // Calculate new users and listings today
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const newUsersToday = await User.countDocuments({ createdAt: { $gte: startOfToday } });
+      const newListingsToday = await Item.countDocuments({ createdAt: { $gte: startOfToday } });
+
+      // Get listings by category for Pie Chart
+      const categoryAggregation = await Item.aggregate([
+        {
+          $group: {
+            _id: "$category",
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { count: -1 } // Sort by count descending
+        }
+      ]);
+
+      // Format for frontend: [{ name: "electronics", count: 145 }]
+      const categoryStats = categoryAggregation.map(cat => ({
+        name: cat._id || "Uncategorized",
+        count: cat.count
+      }));
+
+      res.json({
+          activeListings,
+          activeUsers,
+          newListingsToday,
+          newUsersToday,
+          categoryStats
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  }
 
   // Get all users
   static async getAllUsers(req, res) {
