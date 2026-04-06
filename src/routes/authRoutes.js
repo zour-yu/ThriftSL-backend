@@ -3,13 +3,19 @@ const router = express.Router();
 const AuthController = require('../controllers/authController');
 
 
-// Sign up 
+// Sign up
 router.post('/signup', AuthController.signup);
 
-// Sign in 
+// Sign in
 router.post('/signin', AuthController.signin);
 
-// Reset password 
+// Reset password
 router.post('/reset-password', AuthController.resetPassword);
+
+// Logout - destroy session
+router.post('/logout', AuthController.logout);
+
+// Check session status
+router.get('/session', AuthController.checkSession);
 
 module.exports = router;
