@@ -84,6 +84,14 @@ class AuthController {
         });
       }
 
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated. Please contact support.',
+        });
+      }
+
       // Store user data in session
       req.session.userId = user._id;
       req.session.firebaseUID = firebaseUID;
