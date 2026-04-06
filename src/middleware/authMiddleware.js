@@ -27,6 +27,15 @@ const verifyToken = async (req, res, next) => {
       role: decodedToken.role || 'user',
     };
 
+    // Check if user is active in MongoDB
+    const user = await User.findOne({ firebaseUID: decodedToken.uid });
+    if (!user || !user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated or not found. Please contact support.',
+      });
+    }
+
     next();
 
   } catch (error) {
@@ -39,12 +48,23 @@ const verifyToken = async (req, res, next) => {
 };
 
 // Verify session-based authentication
-const verifySession = (req, res, next) => {
+const verifySession = async (req, res, next) => {
   try {
     if (!req.session || !req.session.userId) {
       return res.status(401).json({
         success: false,
         message: 'Not authenticated. Please sign in.',
+      });
+    }
+
+    // Check if user is active in MongoDB
+    const user = await User.findById(req.session.userId);
+    if (!user || !user.isActive) {
+      // Clear session if user is inactive
+      req.session.destroy();
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated or not found. Please contact support.',
       });
     }
 
