@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 
-//FireBase Admin sdk initialization
+// Firebase Admin SDK initialization
 const admin = require('firebase-admin');
 const serviceAccount = require('./config/firebaseServiceAccountKey.json');
 
@@ -15,40 +15,47 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
+// CORS configuration
 app.use(cors({
-  origin: 'http://localhost:5173', // Update with  frontend URL
+  origin: 'http://localhost:5173', // frontend URL (Vite)
   credentials: true
 }));
-app.use(morgan('dev'));
 
+// Middleware
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-  resave: false, // Don't save session if unmodified
-  saveUninitialized: false, // Don't create session until something stored
+  resave: false,
+  saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
+    mongoUrl: process.env.MONGO_URI, // make sure this is set
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60
+    ttl: 24 * 60 * 60 // 1 day
   }),
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 Day
-    httpOnly: true, // Prevents client-side JS from reading the cookie
-    secure: process.env.NODE_ENV === 'production', // true on HTTPS, false otherwise
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
+// Test route
 app.get('/', (req, res) => {
   res.json({ message: 'API running' });
 });
 
+// Routes
 const routes = require('./routes');
 app.use('/api', routes);
-//app.use(errorHandler);
+
+// Optional error handler (if you add later)
+// const errorHandler = require('./middleware/errorHandler');
+// app.use(errorHandler);
 
 module.exports = app;
