@@ -18,4 +18,10 @@ router.use('/item-images', require('./itemImageRoutes'));
 // Messaging & Interaction Management
 router.use('/messages', require('./messageRoutes'));
 
+// IMPORT swap routes
+const swapRoutes = require('./swap.route.js');
+
+// USE swap routes
+router.use('/swaps', swapRoutes);
+
 module.exports = router;
