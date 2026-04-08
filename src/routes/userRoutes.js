@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/userController");
 const { verifySession, checkUserRole } = require("../middleware/authMiddleware");
+const userUpload = require("../middleware/userMulter");
 
 // Protect all following routes with session authentication
 router.use(verifySession);
@@ -11,7 +12,7 @@ router.use(verifySession);
 router.get("/me", UserController.getMyProfile);
 
 // Update my profile
-router.put("/me", UserController.updateMyProfile);
+router.put("/me", userUpload.single("profileImage"), UserController.updateMyProfile);
 
 // Delete my account
 router.delete("/me", UserController.deleteMyAccount);

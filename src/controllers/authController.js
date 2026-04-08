@@ -61,7 +61,7 @@ class AuthController {
   // Sign in 
   static async signin(req, res) {
     try {
-      const { idToken } = req.body;
+      const { idToken, isAdminLogin } = req.body;
 
       if (!idToken) {
         return res.status(400).json({
@@ -81,6 +81,14 @@ class AuthController {
         return res.status(404).json({
           success: false,
           message: 'User profile not found',
+        });
+      }
+
+      // Check for Admin Portal Access
+      if (isAdminLogin && user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: This portal is for administrators only.',
         });
       }
 

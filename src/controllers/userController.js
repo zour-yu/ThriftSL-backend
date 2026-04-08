@@ -392,11 +392,17 @@ class UserController {
   static async updateMyProfile(req, res) {
     try {
       const { name, phone } = req.body;
+      const updateData = { name, phone };
 
-      // Only allow updating name and phone
+      // If a file was uploaded by multer, add the URL to update data
+      if (req.file && req.file.path) {
+        updateData.profileImage = req.file.path;
+      }
+
+      // Allow updating name, phone, and profileImage
       const user = await User.findOneAndUpdate(
         { firebaseUID: req.user.uid },
-        { name, phone },
+        updateData,
         { new: true, runValidators: true }
       ).select("-__v");
 
