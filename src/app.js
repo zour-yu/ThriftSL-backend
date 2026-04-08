@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const session = require('express-session');
 const MongoStore = require('connect-mongo').default;
 const cookieParser = require('cookie-parser');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -14,15 +15,15 @@ const serviceAccount = require('./config/firebaseServiceAccountKey.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-
+//cors
 app.use(cors({
   origin: 'http://localhost:5173', // Update with  frontend URL
   credentials: true
 }));
 app.use(morgan('dev'));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(cookieParser());
 
@@ -49,6 +50,6 @@ app.get('/', (req, res) => {
 
 const routes = require('./routes');
 app.use('/api', routes);
-//app.use(errorHandler);
+app.use(errorHandler);
 
 module.exports = app;
