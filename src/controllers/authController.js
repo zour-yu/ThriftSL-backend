@@ -92,6 +92,14 @@ class AuthController {
         });
       }
 
+      // Prevent admin from logging into normal user portal
+      if (!isAdminLogin && user.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: Admins must use the admin portal.',
+        });
+      }
+
       // Check if user is active
       if (!user.isActive) {
         return res.status(403).json({
