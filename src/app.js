@@ -10,15 +10,35 @@ const app = express();
 
 // Firebase Admin SDK initialization
 const admin = require('firebase-admin');
-const serviceAccount = require('./config/firebaseServiceAccountKey.json');
+
+// Load Firebase credentials from environment or file
+let serviceAccount;
+if (process.env.FIREBASE_CONFIG) {
+  // Production: Load from environment variable
+  serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
+} else {
+  // Development: Load from file
+  serviceAccount = require('./config/firebaseServiceAccountKey.json');
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173', // Local development
+  'https://thrift-sl-frontend.vercel.app' // Production
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173', // frontend UR
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
