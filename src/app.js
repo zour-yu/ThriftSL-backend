@@ -8,6 +8,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Trust proxy for secure cookies in production (Railway/Vercel)
+app.set('trust proxy', 1);
+
 // Firebase Admin SDK initialization
 const admin = require('firebase-admin');
 

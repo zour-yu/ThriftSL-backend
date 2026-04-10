@@ -50,7 +50,12 @@ const verifyToken = async (req, res, next) => {
 // Verify session-based authentication
 const verifySession = async (req, res, next) => {
   try {
+    // Debug log for session and cookies
+    console.log('DEBUG verifySession: session:', req.session);
+    console.log('DEBUG verifySession: cookies:', req.cookies);
+
     if (!req.session || !req.session.userId) {
+      console.log('DEBUG verifySession: No session or userId');
       return res.status(401).json({
         success: false,
         message: 'Not authenticated. Please sign in.',
@@ -62,6 +67,7 @@ const verifySession = async (req, res, next) => {
     if (!user || !user.isActive) {
       // Clear session if user is inactive
       req.session.destroy();
+      console.log('DEBUG verifySession: User not active or not found');
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated or not found. Please contact support.',
@@ -75,9 +81,11 @@ const verifySession = async (req, res, next) => {
       email: req.session.email,
       role: req.session.role,
     };
+    console.log('DEBUG verifySession: user attached to req:', req.user);
 
     next();
   } catch (error) {
+    console.log('DEBUG verifySession: error', error);
     return res.status(401).json({
       success: false,
       message: 'Session verification failed',
@@ -90,18 +98,18 @@ const verifySession = async (req, res, next) => {
 const checkUserRole = (requiredRole) => {
   return async (req, res, next) => {
     try {
-      const user = await User.findOne({ firebaseUID: req.user.uid });
+      // Use req.user.role if it exists (set by verifySession or verifyToken)
+      const role = req.user && req.user.role;
 
-      // Check if user exists in database
-      if (!user) {
-        return res.status(404).json({
+      if (!role) {
+        return res.status(401).json({
           success: false,
-          message: 'User profile not found',
+          message: 'User authentication information missing',
         });
       }
 
       // Check if user have required role
-      if (user.role !== requiredRole) {
+      if (role !== requiredRole) {
         return res.status(403).json({
           success: false,
           message: `Access denied. ${requiredRole} role required.`,
@@ -109,7 +117,6 @@ const checkUserRole = (requiredRole) => {
       }
 
       next();
-
     } catch (error) {
       return res.status(500).json({
         success: false,
