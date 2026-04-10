@@ -16,6 +16,11 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    itemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Item',
+      default: null,
+    },
     status: {
       type: String,
       enum: ['sent', 'read'],
