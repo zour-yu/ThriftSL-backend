@@ -50,7 +50,12 @@ const verifyToken = async (req, res, next) => {
 // Verify session-based authentication
 const verifySession = async (req, res, next) => {
   try {
+    // Debug log for session and cookies
+    console.log('DEBUG verifySession: session:', req.session);
+    console.log('DEBUG verifySession: cookies:', req.cookies);
+
     if (!req.session || !req.session.userId) {
+      console.log('DEBUG verifySession: No session or userId');
       return res.status(401).json({
         success: false,
         message: 'Not authenticated. Please sign in.',
@@ -62,6 +67,7 @@ const verifySession = async (req, res, next) => {
     if (!user || !user.isActive) {
       // Clear session if user is inactive
       req.session.destroy();
+      console.log('DEBUG verifySession: User not active or not found');
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated or not found. Please contact support.',
@@ -75,9 +81,11 @@ const verifySession = async (req, res, next) => {
       email: req.session.email,
       role: req.session.role,
     };
+    console.log('DEBUG verifySession: user attached to req:', req.user);
 
     next();
   } catch (error) {
+    console.log('DEBUG verifySession: error', error);
     return res.status(401).json({
       success: false,
       message: 'Session verification failed',
