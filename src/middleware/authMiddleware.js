@@ -90,18 +90,18 @@ const verifySession = async (req, res, next) => {
 const checkUserRole = (requiredRole) => {
   return async (req, res, next) => {
     try {
-      const user = await User.findOne({ firebaseUID: req.user.uid });
+      // Use req.user.role if it exists (set by verifySession or verifyToken)
+      const role = req.user && req.user.role;
 
-      // Check if user exists in database
-      if (!user) {
-        return res.status(404).json({
+      if (!role) {
+        return res.status(401).json({
           success: false,
-          message: 'User profile not found',
+          message: 'User authentication information missing',
         });
       }
 
       // Check if user have required role
-      if (user.role !== requiredRole) {
+      if (role !== requiredRole) {
         return res.status(403).json({
           success: false,
           message: `Access denied. ${requiredRole} role required.`,
@@ -109,7 +109,6 @@ const checkUserRole = (requiredRole) => {
       }
 
       next();
-
     } catch (error) {
       return res.status(500).json({
         success: false,
