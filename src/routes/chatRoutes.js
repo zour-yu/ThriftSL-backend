@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const chatController = require('../controllers/chatController');
-const { validateSession } = require('../middleware/sessionAuthMiddleware');
-
-// Apply session validation to all chat routes
-router.use(validateSession);
 
 // Chat initiation
 router.post('/initiate', chatController.initiateChat);

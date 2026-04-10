@@ -8,33 +8,28 @@ const getNotificationModel = () => mongoose.model('Notification');
 /**
  * Initiate a new chat between buyer and seller
  * POST /api/chats/initiate
- * Authenticated via session cookie
+ * Accepts buyerId, sellerId, itemId in request body
  */
 const initiateChat = async (req, res) => {
   try {
-    // Get authenticated user from session
-    const sessionUserId = req.session.user?._id;
+    console.log('📥 Backend received:', {
+      body: req.body,
+      headers: req.headers,
+    });
+
+    // Get buyerId from request body (no session required)
     const { buyerId, sellerId, itemId } = req.body;
 
-    // Use session user as buyerId (more secure), or accept from body if provided
-    const actualBuyerId = buyerId || sessionUserId;
+    console.log('📌 Extracted params:', { buyerId, sellerId, itemId });
 
-    if (!actualBuyerId || !sellerId || !itemId) {
+    if (!buyerId || !sellerId || !itemId) {
       return res.status(400).json({
         success: false,
-        error: 'sellerId and itemId are required (buyerId from session)',
+        error: `Missing required fields. Got: buyerId="${buyerId}", sellerId="${sellerId}", itemId="${itemId}"`,
       });
     }
 
-    // Security check: ensure the requester is initiating chat as themselves
-    if (buyerId && buyerId !== sessionUserId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Cannot initiate chat on behalf of another user',
-      });
-    }
-
-    const result = await chatService.initiateChat(actualBuyerId, sellerId, itemId);
+    const result = await chatService.initiateChat(buyerId, sellerId, itemId);
 
     res.status(result.isNew ? 201 : 200).json({
       success: true,
@@ -42,6 +37,7 @@ const initiateChat = async (req, res) => {
       data: result.chatData,
     });
   } catch (error) {
+    console.error('❌ Chat error:', error.message);
     res.status(error.message.includes('not found') ? 404 : 400).json({
       success: false,
       error: error.message,
