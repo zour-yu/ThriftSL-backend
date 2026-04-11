@@ -97,7 +97,7 @@ const verifySession = async (req, res, next) => {
 // check user role
 const checkUserRole = (requiredRole) => {
   return async (req, res, next) => {
-    try {{"success":false,"message":"Not authenticated. Please sign in."}
+    try {
       // Use req.user.role if it exists (set by verifySession or verifyToken)
       const role = req.user && req.user.role;
 
