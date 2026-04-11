@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/userController");
-const { verifySession, checkUserRole } = require("../middleware/authMiddleware");
+const { authenticate, checkUserRole } = require("../middleware/authMiddleware");
 const userUpload = require("../middleware/userMulter");
 
-// Protect all following routes with session authentication
-router.use(verifySession);
+// Protect all following routes with hybrid authentication (Token or Session)
+router.use(authenticate);
 
 // User-specific routes (for any authenticated user)
 // Get my(user) profile

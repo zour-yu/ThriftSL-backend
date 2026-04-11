@@ -1,7 +1,85 @@
 const admin = require('firebase-admin');
 const User = require('../models/user');
 
-// verify Firebase ID token
+// Hybrid authentication middleware (Token first, then Session)
+const authenticate = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  // 1. Check for Bearer Token
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(token);
+
+      // Check if user is active in MongoDB
+      const user = await User.findOne({ firebaseUID: decodedToken.uid });
+      if (!user) {
+        return res.status(403).json({
+          success: false,
+          message: 'User account not found.',
+        });
+      }
+      
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated. Please contact support.',
+        });
+      }
+
+      req.user = {
+        id: user._id,
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        role: user.role || 'user',
+      };
+      return next();
+    } catch (error) {
+      console.log('DEBUG authenticate: Token verification failed, falling back to session', error.message);
+      // Fall through to session check
+    }
+  }
+
+  // 2. Check for Session/Cookie
+  try {
+    if (req.session && req.session.userId) {
+      const user = await User.findById(req.session.userId);
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session invalid: User not found.',
+        });
+      }
+
+      if (!user.isActive) {
+        req.session.destroy();
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated. Please contact support.',
+        });
+      }
+
+      req.user = {
+        id: user._id,
+        uid: user.firebaseUID,
+        email: user.email,
+        role: user.role,
+      };
+      return next();
+    }
+  } catch (error) {
+    console.log('DEBUG authenticate: Session check error', error);
+  }
+
+  // 3. Neither method worked
+  return res.status(401).json({
+    success: false,
+    message: 'Not authenticated. Please sign in or provide a valid token.',
+  });
+};
+
+// verify Firebase ID token (Standalone - kept for backward compatibility if used directly)
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -21,12 +99,6 @@ const verifyToken = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     // Attach user into controller to use
-    req.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
-      role: decodedToken.role || 'user',
-    };
-
     // Check if user is active in MongoDB
     const user = await User.findOne({ firebaseUID: decodedToken.uid });
     if (!user || !user.isActive) {
@@ -35,6 +107,13 @@ const verifyToken = async (req, res, next) => {
         message: 'Your account has been deactivated or not found. Please contact support.',
       });
     }
+
+    req.user = {
+      id: user._id,
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      role: user.role || 'user',
+    };
 
     next();
 
@@ -47,7 +126,7 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-// Verify session-based authentication
+// Verify session-based authentication (Standalone - kept for backward compatibility if used directly)
 const verifySession = async (req, res, next) => {
   try {
     // Debug log for session and cookies
@@ -127,4 +206,4 @@ const checkUserRole = (requiredRole) => {
   };
 };
 
-module.exports = { verifyToken, verifySession, checkUserRole };
+module.exports = { authenticate, verifyToken, verifySession, checkUserRole };

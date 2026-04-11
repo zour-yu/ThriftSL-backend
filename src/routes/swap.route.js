@@ -1,4 +1,5 @@
 const express = require("express");
+const { authenticate } = require("../middleware/authMiddleware");
 
 const {
   createSwap,
@@ -10,6 +11,9 @@ const {
 } = require("../controllers/swap.controller.js");
 
 const router = express.Router();
+
+// Authenticate all swap routes
+router.use(authenticate);
 
 // GET all swaps
 router.get("/", getSwap);
