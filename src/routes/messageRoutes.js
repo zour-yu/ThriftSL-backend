@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const messageController = require('../controllers/messageController');
+const { authenticate } = require("../middleware/authMiddleware");
+
+// Authenticate all message routes
+router.use(authenticate);
 
 // CREATE: Send a message
 router.post('/', messageController.createMessage);
