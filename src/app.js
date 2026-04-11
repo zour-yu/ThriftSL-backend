@@ -30,7 +30,7 @@ admin.initializeApp({
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173', // Local development
+  'http://localhost:5173', 
   'https://thrift-sl-frontend.vercel.app' // Production
 ];
 
