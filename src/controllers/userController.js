@@ -3,14 +3,15 @@ const Item = require("../models/item");
 const mongoose = require("mongoose");
 
 class UserController {
+  // Admin Functions
   
-  //Admin Functions
 
   // Get Admin Dashboard Stats
+  // [GET] /api/users/dashboard-stats (admin only)
   static async getAdminDashboardStats(req, res) {
     try {
       // Use the actual models and criteria for counting
-      const activeListings = await Item.countDocuments(); // Counts all items, assuming listed = active
+      const activeListings = await Item.countDocuments(); // Counts all items
       const activeUsers = await User.countDocuments({ isActive: true });
       
       // Calculate new users and listings today
@@ -32,7 +33,7 @@ class UserController {
         }
       ]);
 
-      // Format for frontend: [{ name: "electronics", count: 145 }]
+      // Format for frontend
       const categoryStats = categoryAggregation.map(cat => ({
         name: cat._id || "Uncategorized",
         count: cat.count
@@ -74,7 +75,7 @@ class UserController {
         }))
       ];
 
-      // Sort by newest first and grab top 5
+      // Sort by newest first and find top 5
       combinedActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       const recentActivity = combinedActivity.slice(0, 5).map(({ createdAt, ...rest }) => rest);
 
@@ -92,6 +93,7 @@ class UserController {
   }
 
   // Get all users
+  // [GET] /api/users/ (admin only)
   static async getAllUsers(req, res) {
     try {
       const users = await User.find().select("-__v");
@@ -110,6 +112,7 @@ class UserController {
   }
 
   // Get user by ID 
+  // [GET] /api/users/:id (admin only)
   static async getUserById(req, res) {
     try {
       const user = await User.findById(req.params.id).select("-__v");
@@ -133,6 +136,7 @@ class UserController {
   }
 
   // Get user by Firebase UID (admin only)
+  // [GET] /api/users/firebase/:firebaseUID
   static async getUserByFirebaseUID(req, res) {
     try {
       const user = await User.findOne({
@@ -157,7 +161,8 @@ class UserController {
     }
   }
 
-  // Create new user(admin & user can create their own account through signup)
+  // Create new user( & user can create their own account through signup)
+  // [POST] /api/users/ 
   static async createUser(req, res) {
     try {
       const { firebaseUID, name, email, phone, role, isActive } = req.body;
@@ -206,6 +211,7 @@ class UserController {
   }
 
   // Update user (admin only)
+  // [PUT] /api/users/:id 
   static async updateUser(req, res) {
     try {
       const { name, email, phone, role, isActive } = req.body;
@@ -238,6 +244,7 @@ class UserController {
   }
 
   // Delete user(admin only)
+  // [DELETE] /api/users/:id
   static async deleteUser(req, res) {
     try {
       const user = await User.findByIdAndDelete(req.params.id);
@@ -263,6 +270,7 @@ class UserController {
   }
 
   // Get users by role(admin only)
+  // [GET] /api/users/role/:role 
   static async getUsersByRole(req, res) {
     try {
       const { role } = req.params;
@@ -283,6 +291,7 @@ class UserController {
   }
 
   // Get active users  (admin only)
+  // [GET] /api/users/active 
   static async getActiveUsers(req, res) {
     try {
       const users = await User.find({ isActive: true }).select("-__v");
@@ -301,6 +310,7 @@ class UserController {
   }
 
   // Deactivate user (admin only)
+  // [PATCH] /api/users/:id/deactivate 
   static async deactivateUser(req, res) {
     try {
       const user = await User.findByIdAndUpdate(
@@ -331,6 +341,7 @@ class UserController {
   }
 
   // Activate user
+  // [PATCH] /api/users/:id/activate 
   static async activateUser(req, res) {
     try {
       const user = await User.findByIdAndUpdate(
@@ -363,6 +374,7 @@ class UserController {
   //User-specific Functions
 
   // Get my profile (authenticated )
+  // [GET] /api/users/me
   static async getMyProfile(req, res) {
     try {
       
@@ -389,12 +401,12 @@ class UserController {
   }
 
   // Update my profile (authenticated )
+  // [PUT] /api/users/me 
   static async updateMyProfile(req, res) {
     try {
       const { name, phone } = req.body;
       const updateData = { name, phone };
 
-      // If a file was uploaded by multer, add the URL to update data
       if (req.file && req.file.path) {
         updateData.profileImage = req.file.path;
       }
@@ -427,7 +439,8 @@ class UserController {
     }
   }
 
-  // Delete my account (authenticated )
+  // Delete my account (authenticated user)
+  // [DELETE] /api/users/me
   static async deleteMyAccount(req, res) {
     try {
       const user = await User.findOneAndDelete({ firebaseUID: req.user.uid });
@@ -452,7 +465,8 @@ class UserController {
     }
   }
 
-static async getItemsByUserId(req, res) {
+  // [GET] /api/users/:id/items (authenticated user)
+  static async getItemsByUserId(req, res) {
     try {
       const { id } = req.params;
 

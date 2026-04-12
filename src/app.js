@@ -8,7 +8,7 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Trust proxy for secure cookies in production (Railway/Vercel)
+// Trust proxy for secure cookies in production
 app.set('trust proxy', 1);
 
 // Firebase Admin SDK initialization
@@ -30,7 +30,7 @@ admin.initializeApp({
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173', // Local development
+  'http://localhost:5173', 
   'https://thrift-sl-frontend.vercel.app' // Production
 ];
 
