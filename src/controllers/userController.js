@@ -1,8 +1,95 @@
 const User = require("../models/user");
+const Item = require("../models/item");
+const mongoose = require("mongoose");
 
 class UserController {
   
   //Admin Functions
+
+  // Get Admin Dashboard Stats
+  static async getAdminDashboardStats(req, res) {
+    try {
+      // Use the actual models and criteria for counting
+      const activeListings = await Item.countDocuments(); // Counts all items, assuming listed = active
+      const activeUsers = await User.countDocuments({ isActive: true });
+      
+      // Calculate new users and listings today
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const newUsersToday = await User.countDocuments({ createdAt: { $gte: startOfToday } });
+      const newListingsToday = await Item.countDocuments({ createdAt: { $gte: startOfToday } });
+
+      // Get listings by category for Pie Chart
+      const categoryAggregation = await Item.aggregate([
+        {
+          $group: {
+            _id: "$category",
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { count: -1 } // Sort by count descending
+        }
+      ]);
+
+      // Format for frontend: [{ name: "electronics", count: 145 }]
+      const categoryStats = categoryAggregation.map(cat => ({
+        name: cat._id || "Uncategorized",
+        count: cat.count
+      }));
+
+      // Fetch Recent Activity (New Listings and New Users)
+      const recentItems = await Item.find().sort({ createdAt: -1 }).limit(5);
+      const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
+
+      const getTimeAgo = (date) => {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " mins ago";
+        return Math.floor(seconds) + " seconds ago";
+      };
+
+      const combinedActivity = [
+        ...recentItems.map(item => ({
+          id: item._id.toString(),
+          type: "listing",
+          message: `New ${item.title} listed in ${item.category}`,
+          createdAt: item.createdAt,
+          time: getTimeAgo(item.createdAt)
+        })),
+        ...recentUsers.map(user => ({
+          id: user._id.toString(),
+          type: "user",
+          message: `${user.name} registered an account`,
+          createdAt: user.createdAt,
+          time: getTimeAgo(user.createdAt)
+        }))
+      ];
+
+      // Sort by newest first and grab top 5
+      combinedActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const recentActivity = combinedActivity.slice(0, 5).map(({ createdAt, ...rest }) => rest);
+
+      res.json({
+          activeListings,
+          activeUsers,
+          newListingsToday,
+          newUsersToday,
+          categoryStats,
+          recentActivity
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  }
 
   // Get all users
   static async getAllUsers(req, res) {
@@ -70,7 +157,7 @@ class UserController {
     }
   }
 
-  // Create new user(admin only)
+  // Create new user(admin & user can create their own account through signup)
   static async createUser(req, res) {
     try {
       const { firebaseUID, name, email, phone, role, isActive } = req.body;
@@ -279,7 +366,7 @@ class UserController {
   static async getMyProfile(req, res) {
     try {
       
-      const user = await User.findOne({ firebaseUID: test789 }).select("-__v");//hardcoded for testing
+      const user = await User.findOne({ firebaseUID: req.user.uid }).select("-__v");
 
       if (!user) {
         return res.status(404).json({
@@ -305,11 +392,17 @@ class UserController {
   static async updateMyProfile(req, res) {
     try {
       const { name, phone } = req.body;
+      const updateData = { name, phone };
 
-      // Only allow updating name and phone
+      // If a file was uploaded by multer, add the URL to update data
+      if (req.file && req.file.path) {
+        updateData.profileImage = req.file.path;
+      }
+
+      // Allow updating name, phone, and profileImage
       const user = await User.findOneAndUpdate(
-        { firebaseUID: test789 },//hardcoded for testing
-        { name, phone },
+        { firebaseUID: req.user.uid },
+        updateData,
         { new: true, runValidators: true }
       ).select("-__v");
 
@@ -337,7 +430,7 @@ class UserController {
   // Delete my account (authenticated )
   static async deleteMyAccount(req, res) {
     try {
-      const user = await User.findOneAndDelete({ firebaseUID: test789 });//hardcoded for testing
+      const user = await User.findOneAndDelete({ firebaseUID: req.user.uid });
 
       if (!user) {
         return res.status(404).json({

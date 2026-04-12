@@ -21,12 +21,8 @@ router.use('/item-images', require('./itemImageRoutes'));
 // Messaging & Interaction Management
 router.use('/messages', require('./messageRoutes'));
 
-// Chat Routes
-router.use('/chats', require('./chatRoutes'));
-
-// IMPORT swap routes (handle ES6 module export)
-let swapRoutes = require('./swap.route.js');
-swapRoutes = swapRoutes.default || swapRoutes;
+// IMPORT swap routes
+const swapRoutes = require('./swap.route.js');
 
 // USE swap routes
 router.use('/swaps', swapRoutes);

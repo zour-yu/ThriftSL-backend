@@ -1,261 +1,371 @@
 const mongoose = require('mongoose');
 const Item = require('../models/item');
 const User = require("../models/user");
+const ItemImage = require("../models/itemImage");
+const { sendItemCreatedEmail } = require("../service/emailService");
 
-// POST /api/items
+/*
+CREATE ITEM
+*/
 exports.createItem = async (req, res) => {
   try {
-    const { title, price, description, userId, negotiable, swappable, postDate } = req.body;
 
-    if (!title || price === undefined || !userId) {
-      return res.status(400).json({ message: "title, price, and userId are required" });
-    }
+    const {
+      title,
+      price,
+      description,
+      userId,
+      negotiable,
+      swappable,
+      contactNumber,
+      category,
+      location
+    } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid userId (must be ObjectId)" });
-    }
-
-    //  ensure user exists
-    const userExists = await User.findById(userId);
-    if (!userExists) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // get image URLs from cloudinary
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
 
     const item = await Item.create({
       title,
       price,
       description,
       userId,
-      negotiable: negotiable ?? false,
-      swappable: swappable ?? "no",
-      postDate: postDate ? new Date(postDate) : undefined
+      negotiable,
+      swappable,
+      contactNumber,
+      category,
+      location,
+      images: imageUrls
     });
 
-    return res.status(201).json(item);
-  } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
-  }
+    // 🔥 GET USER EMAIL
+    const user = await User.findById(userId);
+
+    if (user && user.email) {
+  await sendItemCreatedEmail({
+    toEmail: user.email,
+    toName: user.name,
+    item: item
+  });
+}
+
+    res.status(201).json({
+      success: true,
+      message: "Item created successfully",
+      data: item
+    });
+
+  } catch (error) {
+  console.error("CREATE ITEM ERROR:", error); // FULL ERROR
+
+  res.status(500).json({
+    success: false,
+    message: "Error creating item",
+    error: error.message
+  });
+}
 };
 
 
-// GET /api/items
+/*
+GET ALL ITEMS
+*/
+
 exports.getAllItems = async (req, res) => {
   try {
-    const { userId, q, minPrice, maxPrice, negotiable, swappable, sortBy } = req.query;
 
-    const filter = {};
+    const items = await Item.find().sort({ createdAt: -1 });
 
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      filter.userId = userId;
-    }
-
-    if (q) filter.title = { $regex: q, $options: 'i' };
-
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      filter.price = {};
-      if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
-      if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
-    }
-
-    if (negotiable !== undefined) filter.negotiable = negotiable === 'true';
-    if (swappable !== undefined) filter.swappable = swappable;
-
-    let query = Item.find(filter);
-
-    if (sortBy === 'newest') query = query.sort({ postDate: -1 });
-    if (sortBy === 'priceAsc') query = query.sort({ price: 1 });
-    if (sortBy === 'priceDesc') query = query.sort({ price: -1 });
-
-    const items = await query.exec();
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// GET /api/items/:id (Mongo _id)
-exports.getItemById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
-    }
-
-    const item = await Item.findById(id);
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-
-    return res.json(item);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// PUT /api/items/:id
-exports.updateItem = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid item id" });
-    }
-
-    // optional safety: prevent changing owner
-    if (req.body.userId) {
-      return res.status(400).json({ message: "userId cannot be updated" });
-    }
-
-    const updated = await Item.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
     });
 
-    if (!updated) return res.status(404).json({ message: "Item not found" });
+  } catch (error) {
 
-    return res.json(updated);
-  } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching items",
+      error: error.message
+    });
+
   }
 };
 
-// DELETE /api/items/:id
+
+/*
+GET SINGLE ITEM
+*/
+
+exports.getItemById = async (req, res) => {
+
+  try {
+
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: item
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching item",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+GET ITEMS BY CATEGORY
+*/
+
+exports.getItemsByCategory = async (req, res) => {
+
+  try {
+
+    const category = req.params.category;
+
+    const items = await Item.find({ category }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching category items",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+GET ITEMS BY USER ID
+*/
+
+exports.getItemsByUser = async (req, res) => {
+
+  try {
+
+    const userId = req.params.userId;
+
+    const items = await Item.find({ userId }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching user items",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+UPDATE ITEM
+*/
+
+exports.updateItem = async (req, res) => {
+
+  try {
+
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Item updated",
+      data: item
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error updating item",
+      error: error.message
+    });
+
+  }
+
+};
+
+
+/*
+DELETE ITEM
+*/
+
 exports.deleteItem = async (req, res) => {
-  try {
-    const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid item id" });
+  try {
+
+    const item = await Item.findByIdAndDelete(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
+      });
     }
 
-    const deleted = await Item.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: "Item not found" });
+    res.json({
+      success: true,
+      message: "Item deleted successfully"
+    });
 
-    return res.json({ message: "Item deleted", id });
-  } catch (err) {
-    return res.status(500).json({ message: "Server error", error: err.message });
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "Error deleting item",
+      error: error.message
+    });
+
   }
+
 };
 
-// ✅ GET /api/items/user/:userId  (items listed by a user for profile)
-exports.getItemsByUserId = async (req, res) => {
+exports.searchItems = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { query } = req.params;
+    const { category } = req.query;
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid userId' });
-    }
-
-    const items = await Item.find({ userId }).sort({ postDate: -1 });
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
-
-// GET /api/items/swappable?excludeItemId=<id>&userId=<userId>
-/*exports.getSwappableItems = async (req, res) => {
-  try {
-    const { excludeItemId, userId } = req.query;
-
-    const filter = {
-      swappable: { $ne: 'no' } // treats 'yes', 'swap', etc as swappable
+    let filter = {
+      title: { $regex: query, $options: "i" }
     };
 
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      filter.userId = userId;
-    }
-
-    if (excludeItemId) {
-      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
-        return res.status(400).json({ message: 'Invalid excludeItemId' });
-      }
-      filter._id = { $ne: excludeItemId };
+    // Add category filter if provided
+    if (category) {
+      filter.category = category;
     }
 
     const items = await Item.find(filter).sort({ createdAt: -1 });
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error searching items",
+      error: error.message
+    });
   }
 };
-*/
 
-// GET /api/items/:id/full  (item + images)
-exports.getItemByIdFull = async (req, res) => {
+
+exports.filterItems = async (req, res) => {
   try {
-    const { id } = req.params;
+    const {
+      minPrice,
+      maxPrice,
+      category,
+      negotiable,
+      swappable,
+      sort
+    } = req.query;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid item id' });
+    let query = {};
+
+    //  CATEGORY
+    if (category && category !== "") {
+      query.category = category;
     }
 
-    const result = await Item.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
-      {
-        $lookup: {
-          from: 'itemimages',          // ✅ collection name for ItemImage model
-          localField: '_id',
-          foreignField: 'itemId',
-          as: 'images'
-        }
-      },
-      { $limit: 1 }
-    ]);
-
-    if (!result.length) {
-      return res.status(404).json({ message: 'Item not found' });
+    //  NEGOTIABLE
+    if (negotiable !== undefined && negotiable !== "") {
+      query.negotiable = negotiable === "true";
     }
 
-    return res.json(result[0]);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    //  SWAPPABLE
+    if (swappable && swappable !== "") {
+      query.swappable = swappable;
+    }
+
+    // PRICE FILTER (FIXED)
+    if ((minPrice && minPrice !== "") || (maxPrice && maxPrice !== "")) {
+      query.price = {};
+
+      if (minPrice && minPrice !== "") {
+        query.price.$gte = Number(minPrice);
+      }
+
+      if (maxPrice && maxPrice !== "") {
+        query.price.$lte = Number(maxPrice);
+      }
+    }
+
+    //  SORTING
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "price_low") sortOption = { price: 1 };
+    if (sort === "price_high") sortOption = { price: -1 };
+    if (sort === "latest") sortOption = { createdAt: -1 };
+
+    console.log("FINAL QUERY:", query); // 🔥 DEBUG
+
+    const items = await Item.find(query).sort(sortOption);
+
+    res.json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (error) {
+    console.error("FILTER ERROR:", error); // 🔥 VERY IMPORTANT
+
+    res.status(500).json({
+      success: false,
+      message: "Error filtering items",
+      error: error.message
+    });
   }
 };
 
-// GET /api/items/swappable/full?excludeItemId=<id>&userId=<userId>
-exports.getSwappableItemsFull = async (req, res) => {
-  try {
-    const { excludeItemId, userId } = req.query;
-
-    const match = {
-      swappable: { $ne: 'no' } // 'yes' or any other string is treated as swappable
-    };
-
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid userId' });
-      }
-      match.userId = new mongoose.Types.ObjectId(userId);
-    }
-
-    if (excludeItemId) {
-      if (!mongoose.Types.ObjectId.isValid(excludeItemId)) {
-        return res.status(400).json({ message: 'Invalid excludeItemId' });
-      }
-      match._id = { $ne: new mongoose.Types.ObjectId(excludeItemId) };
-    }
-
-    const items = await Item.aggregate([
-      { $match: match },
-      { $sort: { createdAt: -1 } },
-      {
-        $lookup: {
-          from: 'itemimages',
-          localField: '_id',
-          foreignField: 'itemId',
-          as: 'images'
-        }
-      }
-    ]);
-
-    return res.json(items);
-  } catch (err) {
-    return res.status(500).json({ message: 'Server error', error: err.message });
-  }
-};
