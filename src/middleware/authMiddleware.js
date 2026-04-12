@@ -35,7 +35,13 @@ const authenticate = async (req, res, next) => {
       };
       return next();
     } catch (error) {
-      console.log('DEBUG authenticate: Token verification failed, falling back to session', error.message);
+      // Check if token is expired specifically
+      if (error.code === 'auth/id-token-expired') {
+        console.log('DEBUG authenticate: Firebase ID token has expired. Client must refresh token.', error.message);
+        // Continue to session fallback
+      } else {
+        console.log('DEBUG authenticate: Token verification failed, falling back to session', error.message);
+      }
       // Fall through to session check
     }
   }
@@ -75,7 +81,7 @@ const authenticate = async (req, res, next) => {
   // Error
   return res.status(401).json({
     success: false,
-    message: 'Not authenticated. Please sign in or provide a valid token.',
+    message: 'Not authenticated. Please sign in or provide a valid token. If token expired, refresh and retry.',
   });
 };
 
