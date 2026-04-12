@@ -5,7 +5,7 @@ const User = require('../models/user');
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // 1. Check for Bearer Token
+  //  Check for Bearer Token
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.split('Bearer ')[1];
@@ -40,7 +40,7 @@ const authenticate = async (req, res, next) => {
     }
   }
 
-  // 2. Check for Session/Cookie
+  // Check for Session/Cookie
   try {
     if (req.session && req.session.userId) {
       const user = await User.findById(req.session.userId);
@@ -72,14 +72,14 @@ const authenticate = async (req, res, next) => {
     console.log('DEBUG authenticate: Session check error', error);
   }
 
-  // 3. Neither method worked
+  // Error
   return res.status(401).json({
     success: false,
     message: 'Not authenticated. Please sign in or provide a valid token.',
   });
 };
 
-// verify Firebase ID token (Standalone - kept for backward compatibility if used directly)
+// verify Firebase ID token
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -98,7 +98,7 @@ const verifyToken = async (req, res, next) => {
     // Verify token with Firebase Admin SDK
     const decodedToken = await admin.auth().verifyIdToken(token);
 
-    // Attach user into controller to use
+    // Attach user into controller 
     // Check if user is active in MongoDB
     const user = await User.findOne({ firebaseUID: decodedToken.uid });
     if (!user || !user.isActive) {
@@ -126,7 +126,7 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-// Verify session-based authentication (Standalone - kept for backward compatibility if used directly)
+// Verify session-based authentication
 const verifySession = async (req, res, next) => {
   try {
     // Debug log for session and cookies
@@ -187,7 +187,7 @@ const checkUserRole = (requiredRole) => {
         });
       }
 
-      // Check if user have required role
+      // Check required role
       if (role !== requiredRole) {
         return res.status(403).json({
           success: false,
