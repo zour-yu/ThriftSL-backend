@@ -50,8 +50,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware
 app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Session configuration
@@ -81,9 +79,5 @@ app.get('/', (req, res) => {
 const routes = require('./routes');
 app.use('/api', routes);
 app.use(errorHandler);
-
-// Optional error handler (if you add later)
-// const errorHandler = require('./middleware/errorHandler');
-// app.use(errorHandler);
 
 module.exports = app;
