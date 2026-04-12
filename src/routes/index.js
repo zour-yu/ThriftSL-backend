@@ -5,6 +5,9 @@ router.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
+// Public support chatbot (Gemini + listing tools)
+router.use('/chatbot', require('./chatbotRoutes'));
+
 // Auth Routes
 router.use('/auth', require('./authRoutes'));
 
